@@ -37,6 +37,48 @@ class DatabaseHelper {
         note TEXT
       )
     ''');
+    
+    // Seed initial data matching requirements
+    await db.insert('transactions', {
+      'title': 'Ăn trưa',
+      'amount': 50000.0,
+      'date': '03/09/2024',
+      'category': 'Ăn uống',
+      'type': 'expense',
+      'note': 'Ăn trưa'
+    });
+    await db.insert('transactions', {
+      'title': 'Xăng xe',
+      'amount': 100000.0,
+      'date': '03/09/2024',
+      'category': 'Di chuyển',
+      'type': 'expense',
+      'note': 'Đổ xăng'
+    });
+    await db.insert('transactions', {
+      'title': 'Lương tháng 9',
+      'amount': 8000000.0,
+      'date': '01/09/2024',
+      'category': 'Thu nhập',
+      'type': 'income',
+      'note': 'Lương tháng'
+    });
+    await db.insert('transactions', {
+      'title': 'Mua sắm',
+      'amount': 300000.0,
+      'date': '31/08/2024',
+      'category': 'Mua sắm',
+      'type': 'expense',
+      'note': 'Quần áo'
+    });
+    await db.insert('transactions', {
+      'title': 'Học phí',
+      'amount': 500000.0,
+      'date': '30/08/2024',
+      'category': 'Giáo dục',
+      'type': 'expense',
+      'note': 'Học phí khóa học'
+    });
   }
 
   // Create

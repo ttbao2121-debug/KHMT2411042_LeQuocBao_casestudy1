@@ -1,16 +1,11 @@
 import 'package:flutter/material.dart';
+import '../helpers/database_helper.dart';
+import '../models/transaction_model.dart';
 
 class AddEditScreen extends StatefulWidget {
-  final bool isEditing;
-  final String? initialAmount;
-  final String? initialNote;
+  final TransactionModel? transaction;
 
-  const AddEditScreen({
-    super.key,
-    this.isEditing = false,
-    this.initialAmount,
-    this.initialNote,
-  });
+  const AddEditScreen({super.key, this.transaction});
 
   @override
   State<AddEditScreen> createState() => _AddEditScreenState();
@@ -21,19 +16,33 @@ class _AddEditScreenState extends State<AddEditScreen> {
   late TextEditingController _amountController;
   late TextEditingController _dateController;
   late TextEditingController _noteController;
-  final String _selectedCategory = 'Ăn uống';
+  late String _selectedCategory;
+
+  final List<String> _categories = [
+    'Ăn uống',
+    'Di chuyển',
+    'Thu nhập',
+    'Mua sắm',
+    'Giáo dục',
+    'Hóa đơn',
+    'Khác'
+  ];
 
   @override
   void initState() {
     super.initState();
-    _isExpense = true;
+    final tx = widget.transaction;
+    _isExpense = tx == null ? true : (tx.type == 'expense');
     _amountController = TextEditingController(
-      text: widget.initialAmount ?? (widget.isEditing ? '100.000' : ''),
+      text: tx != null ? tx.amount.toStringAsFixed(0) : '',
     );
-    _dateController = TextEditingController(text: '12/04/2025');
+    _dateController = TextEditingController(
+      text: tx != null ? tx.date : '12/04/2025',
+    );
     _noteController = TextEditingController(
-      text: widget.initialNote ?? (widget.isEditing ? 'Ăn trưa' : ''),
+      text: tx != null ? (tx.note ?? tx.title) : '',
     );
+    _selectedCategory = tx != null ? tx.category : 'Ăn uống';
   }
 
   @override
@@ -44,9 +53,45 @@ class _AddEditScreenState extends State<AddEditScreen> {
     super.dispose();
   }
 
+  Future<void> _saveTransaction() async {
+    final amountText = _amountController.text.trim();
+    if (amountText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng nhập số tiền')),
+      );
+      return;
+    }
+
+    final amount = double.tryParse(amountText.replaceAll('.', '').replaceAll(',', '')) ?? 0.0;
+    final title = _noteController.text.trim().isNotEmpty 
+        ? _noteController.text.trim() 
+        : _selectedCategory;
+
+    final tx = TransactionModel(
+      id: widget.transaction?.id,
+      title: title,
+      amount: amount,
+      date: _dateController.text.trim(),
+      category: _selectedCategory,
+      type: _isExpense ? 'expense' : 'income',
+      note: _noteController.text.trim(),
+    );
+
+    if (widget.transaction != null) {
+      await DatabaseHelper.instance.updateTransaction(tx);
+    } else {
+      await DatabaseHelper.instance.insertTransaction(tx);
+    }
+
+    if (mounted) {
+      Navigator.pop(context, true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final title = widget.isEditing ? 'Sửa giao dịch' : 'Thêm giao dịch';
+    final isEditing = widget.transaction != null;
+    final titleText = isEditing ? 'Sửa giao dịch' : 'Thêm giao dịch';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -58,7 +103,7 @@ class _AddEditScreenState extends State<AddEditScreen> {
           onPressed: () => Navigator.maybePop(context),
         ),
         title: Text(
-          title,
+          titleText,
           style: const TextStyle(
             color: Color(0xFF1E293B),
             fontSize: 18,
@@ -84,7 +129,12 @@ class _AddEditScreenState extends State<AddEditScreen> {
                   children: [
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => setState(() => _isExpense = true),
+                        onTap: () => setState(() {
+                          _isExpense = true;
+                          if (_selectedCategory == 'Thu nhập') {
+                            _selectedCategory = 'Ăn uống';
+                          }
+                        }),
                         child: Container(
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
@@ -108,7 +158,10 @@ class _AddEditScreenState extends State<AddEditScreen> {
                     ),
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => setState(() => _isExpense = false),
+                        onTap: () => setState(() {
+                          _isExpense = false;
+                          _selectedCategory = 'Thu nhập';
+                        }),
                         child: Container(
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
@@ -146,42 +199,55 @@ class _AddEditScreenState extends State<AddEditScreen> {
               ),
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 decoration: BoxDecoration(
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFFFEBEE),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.restaurant,
-                        size: 16,
-                        color: Color(0xFFFF5252),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _selectedCategory,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Color(0xFF1E293B),
-                          fontWeight: FontWeight.w500,
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _categories.contains(_selectedCategory) ? _selectedCategory : _categories.first,
+                    isExpanded: true,
+                    icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B)),
+                    items: _categories.map((String category) {
+                      return DropdownMenuItem<String>(
+                        value: category,
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: _isExpense ? const Color(0xFFFFEBEE) : const Color(0xFFE8F5E9),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                category == 'Thu nhập' ? Icons.work : Icons.category,
+                                size: 16,
+                                color: _isExpense ? const Color(0xFFFF5252) : const Color(0xFF4CAF50),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              category,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: Color(0xFF1E293B),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ),
-                    const Icon(
-                      Icons.keyboard_arrow_down,
-                      color: Color(0xFF64748B),
-                    ),
-                  ],
+                      );
+                    }).toList(),
+                    onChanged: (String? newValue) {
+                      if (newValue != null) {
+                        setState(() {
+                          _selectedCategory = newValue;
+                        });
+                      }
+                    },
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -322,9 +388,7 @@ class _AddEditScreenState extends State<AddEditScreen> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // TODO: Save transaction logic
-                  },
+                  onPressed: _saveTransaction,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1976D2),
                     foregroundColor: Colors.white,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/transaction_model.dart';
 import 'add_edit_screen.dart';
 import 'dashboard_screen.dart';
 
@@ -154,7 +155,7 @@ class SplashScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const AddEditScreen(isEditing: false),
+                            builder: (context) => const AddEditScreen(),
                           ),
                         );
                       },
@@ -172,10 +173,19 @@ class SplashScreen extends StatelessWidget {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () {
+                        final sampleTx = TransactionModel(
+                          id: 1,
+                          title: 'Ăn trưa',
+                          amount: 100000,
+                          date: '12/04/2025',
+                          category: 'Ăn uống',
+                          type: 'expense',
+                          note: 'Ăn trưa',
+                        );
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const AddEditScreen(isEditing: true),
+                            builder: (context) => AddEditScreen(transaction: sampleTx),
                           ),
                         );
                       },
